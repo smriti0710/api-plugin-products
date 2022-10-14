@@ -9,16 +9,21 @@
  * @param {String} shopId - ID of the shop that owns the product
  * @returns {String} handle - modified `handle`
  */
-export default async function createHandle(context, productHandle, productId, shopId) {
+export default async function createHandle(
+  context,
+  productHandle,
+  productId,
+  shopId
+) {
   let handle = productHandle || "";
 
   // exception product._id needed for cases when double triggering happens
   const handleCount = await context.collections.Products.find({
     handle,
     _id: {
-      $nin: [productId]
+      $nin: [productId],
     },
-    shopId
+    shopId,
   }).count();
 
   // current product "copy" number
@@ -26,7 +31,8 @@ export default async function createHandle(context, productHandle, productId, sh
   // product handle prefix
   let handleString = handle;
   // copySuffix "-copy-number" suffix of product
-  const copySuffix = handleString.match(/-copy-\d+$/) || handleString.match(/-copy$/);
+  const copySuffix =
+    handleString.match(/-copy-\d+$/) || handleString.match(/-copy$/);
 
   // if product is a duplicate, we should take the copy number, and cut
   // the handle
@@ -47,26 +53,32 @@ export default async function createHandle(context, productHandle, productId, sh
       handle = `${handleString}-${handleNumberSuffix + handleCount}`;
     } else {
       // first copy will be "...-copy", second: "...-copy-2"
-      handle = `${handleString}-copy${handleCount > 1 ? `-${handleCount}` : ""}`;
+      handle = `${handleString}-copy${
+        handleCount > 1 ? `-${handleCount}` : ""
+      }`;
     }
   }
 
   // we should check again if there are any new matches with DB
   // exception product._id needed for cases then double triggering happens
-  const existingProductWithSameSlug = await context.collections.Products.findOne({
-    handle,
-    _id: {
-      $nin: [productId]
-    },
-    shopId
-  }, {
-    projection: {
-      _id: 1
-    }
-  });
+  const existingProductWithSameSlug =
+    await context.collections.Products.findOne(
+      {
+        handle,
+        _id: {
+          $nin: [productId],
+        },
+        shopId,
+      },
+      {
+        projection: {
+          _id: 1,
+        },
+      }
+    );
 
   if (existingProductWithSameSlug) {
-    handle = createHandle(context, handle, productId, shopId);
+    handle = await createHandle(context, handle, productId, shopId);
   }
 
   return handle;
